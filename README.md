@@ -45,7 +45,7 @@ print("Video downloaded to \(destURL.path())")
 To include this package, add this line to your ```Package.swift```:
 
 ```swift
-.package(url: "https://github.com/dcas796/YouTubeKit.git", branch: "main")
+.package(url: "https://github.com/dcas796/YouTubeKit.git", exact: "0.0.3")
 ```
 
 ---
