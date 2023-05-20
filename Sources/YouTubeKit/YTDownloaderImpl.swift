@@ -11,48 +11,66 @@ import JavaScriptCore
 struct YTDownloaderImpl {
     static let descramblerFuncName: String = "descramble"
     static let descramblerURL: URL? = Bundle.module.url(forResource: "descrambler", withExtension: "js")
-    static let alphabet: String = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_="
     
-    func download(
+    var downloaderOption: YTOptions.DownloaderOption
+    
+    var currentCancellable: Cancellable?
+    
+    mutating func download(
         video: YTVideo,
-        quality: YTVideoFormat.Quality,
-        fileFormat: YTFileFormat,
+        format: YTVideoFormat,
         outputURL: URL,
         updateHandler: @escaping (YTVideo, Progress) -> Void
     ) async throws {
+        switch downloaderOption {
+        case .chunked:
+            try await downloadFileChunked(from: format.url, to: outputURL, video: video, updateHandler: updateHandler)
+        case .unthrottle:
+            let unthrottledURL = try unthrottle(videoURL: format.url)
+            try await downloadFile(from: unthrottledURL, to: outputURL, video: video, updateHandler: updateHandler)
+        }
+    }
+    
+    mutating func downloadFile(from url: URL,
+                      to outputURL: URL,
+                      video: YTVideo,
+                      updateHandler: @escaping (YTVideo, Progress) -> Void) async throws {
         try await withCheckedThrowingContinuation { continuation in
-            do {
-                guard let videoFormat = video.formats.first(where: { $0.quality == quality && $0.mimeType.subtype == fileFormat.rawValue }) else {
-                    throw YTError.unavailableFormatAndQuality(format: fileFormat, quality: quality)
-                }
-                
-                let configuration = URLSessionConfiguration.default
-                
-                let delegate = YTURLSessionDownloadDelegate(video: video,
-                                                            updateHandler: updateHandler,
-                                                            completionHandler: { result in
-                    do {
-                        switch result {
-                        case .success(let url):
-                            try FileManager().copyItem(at: url, to: outputURL)
-                            continuation.resume()
-                        case .failure(let error):
-                            throw error
-                        }
-                    } catch {
-                        continuation.resume(throwing: YTError.downloadError(context: YTError.Context(underlyingError: error)))
+            let delegate = YTURLSessionDownloadDelegate(video: video,
+                                                        updateHandler: updateHandler,
+                                                        completionHandler: { result in
+                do {
+                    switch result {
+                    case .success(let url):
+                        try FileManager().copyItem(at: url, to: outputURL)
+                        continuation.resume()
+                    case .failure(let error):
+                        throw error
                     }
-                })
-                let session = URLSession(configuration: configuration,
-                                         delegate: delegate,
-                                         delegateQueue: .main)
-                
-                let unthrottledURL = try unthrottle(videoURL: videoFormat.url)
-                let downloadTask = session.downloadTask(with: unthrottledURL)
-                downloadTask.resume()
-            } catch {
-                continuation.resume(throwing: error)
-            }
+                } catch {
+                    continuation.resume(throwing: YTError.downloadError(context: YTError.Context(underlyingError: error)))
+                }
+            })
+            let configuration = URLSessionConfiguration.default
+            let session = URLSession(configuration: configuration,
+                                     delegate: delegate,
+                                     delegateQueue: .main)
+            
+            
+            let downloadTask = session.downloadTask(with: url)
+            self.currentCancellable = downloadTask
+            downloadTask.resume()
+        }
+    }
+    
+    mutating func downloadFileChunked(from url: URL,
+                             to outputURL: URL,
+                             video: YTVideo,
+                             updateHandler: @escaping (YTVideo, Progress) -> Void) async throws {
+        var httpDownloader = try await YTHTTPDownloader(url: url)
+        self.currentCancellable = httpDownloader
+        try await httpDownloader.download(to: outputURL) { _, progress in
+            updateHandler(video, progress)
         }
     }
     
@@ -108,12 +126,5 @@ struct YTDownloaderImpl {
             return (String(keyValues[0]), String(keyValues[1]))
         }
         return Dictionary(uniqueKeysWithValues: keyValues)
-    }
-    
-    func createTemporaryFileURL() -> URL {
-        let filename = "download" + (0..<8).compactMap { _ in
-            Self.alphabet.randomElement()
-        } + ".tmp"
-        return URL(filePath: NSTemporaryDirectory()).appending(path: filename)
     }
 }

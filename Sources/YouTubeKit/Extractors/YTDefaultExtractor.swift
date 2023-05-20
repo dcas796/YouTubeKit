@@ -1,24 +1,33 @@
 //
-//  YTExtractor.swift
+//  YTDefaultExtractor.swift
 //  
 //
-//  Created by Dani on 3/5/23.
+//  Created by Dani on 13/5/23.
 //
 
 import Foundation
-import RegexBuilder
 
-struct YTExtractor {
-    static let playerAPIURL: URL = URL(string: "https://www.youtube.com/youtubei/v1/player")!
+struct YTDefaultExtractor: YTExtractor {
+    static let apiKey = "AIzaSyA8eiZmM1FaDVjRy-df2KTyQ_vz_yYM39w"
+    static let playerAPIURL: URL = URL(string:
+        "https://www.youtube.com/youtubei/v1/player?key=\(apiKey)&prettyPrint=false")!
     static let videoIDRegex: Regex = #/v=(.{11})/#
+    static let userAgent: String = "com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip"
+    static let requestHeaders: [String : String] = [
+        "Content-Type": "application/json",
+        "X-youtube-client-name": "3",
+        "X-youtube-client-version": "17.31.35",
+        "Origin": "https://www.youtube.com",
+        "User-Agent": userAgent
+    ]
     
     func video(for videoURL: URL) async throws -> YTVideo {
         let videoID = try await videoID(for: videoURL)
         
-        return try await throwingYTError {
+        return try await YTError.asyncWrapper {
             var request = URLRequest(url: Self.playerAPIURL)
             request.httpMethod = "POST"
-            request.setValue("application/json;charset=UTF-8", forHTTPHeaderField: "Content-Type")
+            addHeaders(for: &request)
             let requestBody = requestBody(videoID: videoID)
             let requestBodyData = try JSONSerialization.data(withJSONObject: requestBody)
             request.httpBody = requestBodyData
@@ -48,7 +57,7 @@ struct YTExtractor {
         guard let lastComponent = videoURL.query() else {
             throw YTError.invalidURL()
         }
-        return try await throwingYTError {
+        return try await YTError.asyncWrapper {
             guard let (_, videoID) = try Self.videoIDRegex.firstMatch(in: lastComponent)?.output else {
                 throw YTError.invalidURL()
             }
@@ -56,26 +65,33 @@ struct YTExtractor {
         }
     }
     
-    func requestBody(videoID: String) -> [String : Any] {
-        [
-            "videoId": videoID,
-            "context": [
-                "client": [
-                    "clientName": "WEB_EMBEDDED_PLAYER",
-                    "clientVersion": "1.20230430.00.00"
-                ]
-            ]
-        ]
+    func addHeaders(for request: inout URLRequest) {
+        for (header, value) in Self.requestHeaders {
+            request.addValue(value, forHTTPHeaderField: header)
+        }
     }
     
-    func throwingYTError<T>(_ code: () async throws -> T) async throws -> T {
-        do {
-            return try await code()
-        } catch {
-            if let error = error as? YTError {
-                throw error
-            }
-            throw YTError.unknown(context: YTError.Context(underlyingError: error))
-        }
+    func requestBody(videoID: String) -> [String : Any] {
+        [
+            "context": [
+                "client": [
+                    "clientName": "ANDROID",
+                    "clientVersion": "17.31.35",
+                    "androidSdkVersion": 30,
+                    "userAgent": "com.google.android.youtube/17.31.35 (Linux; U; Android 11) gzip",
+                    "hl": "en",
+                    "timeZone": "UTC",
+                    "utcOffsetMinutes": 0
+                ] as [String : Any]
+            ],
+            "videoId": videoID,
+            "playbackContext": [
+                "contentPlaybackContext": [
+                    "html5Preference": "HTML5_PREF_WANTS"
+                ]
+            ],
+            "contentCheckOk": true,
+            "racyCheckOk": true
+        ]
     }
 }

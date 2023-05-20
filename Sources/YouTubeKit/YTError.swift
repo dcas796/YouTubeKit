@@ -12,6 +12,7 @@ public enum YTError {
     case parsingError(context: Context = Context())
     case unavailableFormatAndQuality(format: YTFileFormat, quality: YTVideoFormat.Quality, context: Context = Context())
     case downloadError(context: Context = Context())
+    case downloadCancelled(context: Context = Context())
     case unknown(context: Context = Context())
 }
 
@@ -24,7 +25,9 @@ extension YTError {
             return context
         case .unavailableFormatAndQuality(_, _, let context):
             return context
-        case .downloadError(context: let context):
+        case .downloadError(let context):
+            return context
+        case .downloadCancelled(let context):
             return context
         case .unknown(let context):
             return context
@@ -63,6 +66,8 @@ extension YTError: LocalizedError {
             return "The format '\(fileFormat.rawValue)' with quality '\(quality.rawValue)' is not available for this video."
         case .downloadError:
             return "An error occurred while downloading a video."
+        case .downloadCancelled:
+            return "The download was cancelled."
         case .unknown:
             return "An unknown error occurred. Please try later."
         }
@@ -70,5 +75,29 @@ extension YTError: LocalizedError {
     
     public var failureReason: String? {
         context.description
+    }
+}
+
+extension YTError {
+    static func asyncWrapper<T>(_ code: () async throws -> T) async throws -> T {
+        do {
+            return try await code()
+        } catch {
+            if let error = error as? YTError {
+                throw error
+            }
+            throw YTError.unknown(context: YTError.Context(underlyingError: error))
+        }
+    }
+    
+    static func wrapper<T>(_ code: () throws -> T) throws -> T {
+        do {
+            return try code()
+        } catch {
+            if let error = error as? YTError {
+                throw error
+            }
+            throw YTError.unknown(context: YTError.Context(underlyingError: error))
+        }
     }
 }

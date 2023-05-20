@@ -43,6 +43,50 @@ extension YTVideoFormat {
     }
 }
 
+extension YTVideoFormat.Quality {
+    public var pixels: Int {
+        switch self {
+        case .hd1080:
+            return 1080
+        case .hd720:
+            return 720
+        case .large:
+            return 480
+        case .medium:
+            return 360
+        case .small:
+            return 240
+        case .tiny:
+            return 144
+        }
+    }
+}
+
+extension YTVideoFormat.Quality: Comparable {
+    public static func < (lhs: YTVideoFormat.Quality, rhs: YTVideoFormat.Quality) -> Bool {
+        lhs.pixels < rhs.pixels
+    }
+}
+
+extension YTVideoFormat.Quality: CustomStringConvertible {
+    public var description: String {
+        switch self {
+        case .hd1080:
+            return "1080p"
+        case .hd720:
+            return "720p"
+        case .large:
+            return "480p"
+        case .medium:
+            return "360p"
+        case .small:
+            return "240p"
+        case .tiny:
+            return "144p"
+        }
+    }
+}
+
 extension YTVideoFormat: Decodable {
     enum CodingKeys: CodingKey {
         case itag

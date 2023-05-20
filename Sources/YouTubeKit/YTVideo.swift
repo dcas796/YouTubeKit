@@ -12,6 +12,10 @@ public struct YTVideo: Equatable, Hashable {
     public var formats: [YTVideoFormat]
     
     public var availableQualities: [YTVideoFormat.Quality] {
-        formats.map { $0.quality }
+        Array(Set(formats.map { $0.quality })).sorted().reversed()
+    }
+    
+    public var availableFormats: [YTFileFormat] {
+        Array(Set(formats.compactMap { YTFileFormat(rawValue: $0.mimeType.subtype) })).sorted().reversed()
     }
 }

@@ -13,8 +13,7 @@ public struct YTVideoDetails: Equatable, Hashable, Identifiable {
     public var lengthSeconds: String
     public var channelID: String
     public var shortDescription: String
-    // TODO: Thumbnails
-    // public var thumbnail: ThumbnailSet
+    public var thumbnails: [YTVideoThumbnail]
     public var viewCount: Int
     public var author: String
     public var isPrivate: Bool
@@ -27,6 +26,7 @@ extension YTVideoDetails: Decodable {
         case lengthSeconds
         case channelId
         case shortDescription
+        case thumbnail
         case viewCount
         case author
         case isPrivate
@@ -44,6 +44,13 @@ extension YTVideoDetails: Decodable {
                 DecodingError.Context(codingPath: [CodingKeys.viewCount],
                                       debugDescription: "Failed Int conversion from String"))
         }
+        let thumbnailsObject = try container.decode([String : [YTVideoThumbnail]].self, forKey: .thumbnail)
+        guard let thumbnails = thumbnailsObject["thumbnails"] else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(codingPath: [CodingKeys.thumbnail],
+                                      debugDescription: "Unable to locate 'thumbnails' key in 'thumbnail' object"))
+        }
+        self.thumbnails = thumbnails
         self.viewCount = viewCount
         self.author = try container.decode(String.self, forKey: .author)
         self.isPrivate = try container.decode(Bool.self, forKey: .isPrivate)
