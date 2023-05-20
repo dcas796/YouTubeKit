@@ -1,6 +1,5 @@
 # TODO
 
-- Figure out how to set the version in SPM for this project
 - Fix YTHTTPDownloader failing to download YouTube videos after less than 30s of operation. Throws a "Mismatched header range and response bytes"
 - Make YTHTTPDownloader multi-threaded and improve download speed
 - Implement ```downloadURL(for format: YTVideoFormat) async throws -> URL```
