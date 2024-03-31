@@ -5,15 +5,18 @@ A Swift package that extracts and downloads YouTube videos.
 
 Note: this is just a fun side-project, don't use this for production :)
 
-| Test               | Passing |
-|--------------------|---------|
-| testYTVideo        | ✅       |
+| Test               | Passing  |
+|--------------------|----------|
+| testYTVideo        | ❌       |
 | testDownload       | ❌       |
 | testYTMimeType     | ✅       |
 | testEnumEncoding   | ✅       |
 | testNDescrambling  | ✅       |
-| testThumbnails     | ✅       |
-| testHTTPDownloader | ✅       |
+| testThumbnails     | ❌       |
+| testHTTPDownloader | ❌       |
+
+Note: This project hasn't been updated in a long time, so don't expect it to work. 
+I will continue committing to this project whenever I find spare time.
 
 ## Example
 ```swift
